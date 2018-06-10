@@ -1,4 +1,5 @@
-#### ansible-playbook combine_two_varible.yml
+#### ansible-playbook combine_two_varible.yml --extra-vars "name=one"
+#### ansible-playbook combine_two_varible.yml --extra-vars "name=two"
 ---
 - hosts: localhost
   connection: local
