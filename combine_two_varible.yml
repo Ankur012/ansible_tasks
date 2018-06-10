@@ -1,0 +1,17 @@
+#### ansible-playbook combine_two_varible.yml
+---
+- hosts: localhost
+  connection: local
+  vars:
+     one_vars:
+        - a
+        - b
+        - c
+      two_vars:
+         - 1
+         - 2
+         - 3
+  tasks:
+    - debug: msg={{ item }}
+      with_items:
+         - "{{ vars[name + '_vars'] }}"
