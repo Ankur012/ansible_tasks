@@ -11,3 +11,12 @@
              ( "{{ name1 }}" is none )
              or
              ( "{{ name1 }}" | trim == '' )
+    - name: test variable define check          
+      command: free -m
+      when: not(
+              ( "{{ name1 }}" is undefined )
+              or
+              ( "{{ name1 }}" is none )
+              or
+              ( "{{ name1 }}" | trim == '' )
+              )
