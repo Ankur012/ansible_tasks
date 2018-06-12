@@ -1,0 +1,13 @@
+##ansible-playbook  test.yml   --extra-vars "name1=123"
+##ansible-playbook  test.yml   --extra-vars "name1="
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: test variable define check 
+      command: ip r l
+       when: ( "{{ name1 }}" is undefined )
+             or
+             ( "{{ name1 }}" is none )
+             or
+             ( "{{ name1 }}" | trim == '' )
