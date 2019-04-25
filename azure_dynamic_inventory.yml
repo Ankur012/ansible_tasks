@@ -1,0 +1,60 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+      name:
+        - vm1
+        - vm2
+        - vm3
+        - vm4
+        - vm5
+        - vm6
+        - vm7
+
+      az_tags:
+        - database
+        - web
+        - app
+        - file
+        - mail
+        - dns
+        - jumphost
+        - dev
+  tasks:
+      - name: Task | Get facts for all virtual machines of a resource group
+        azure_rm_virtualmachine_facts:
+           resource_group: test
+           name: "{{ item.0 }}"
+           tags:
+             - component:{{ item.1 }}
+             - instanceType:{{ item.1 }}
+        register: get_info
+        with_together:
+               - "{{ name }}"
+               - "{{ az_tags }}"
+        ignore_errors: yes
+
+
+      - name: Task | Get nic name address
+        azure_rm_networkinterface_facts:
+           resource_group: test
+           name: "{{ item.vms[0].network_interface_names[0] }}"
+        with_items:
+              - "{{ get_info.results }}"
+        register: get_net_fact
+
+      - debug: msg="{{ item.ansible_facts.azure_networkinterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress }}"
+        with_items:
+               - "{{ get_net_fact.results }}"
+
+      - name: Task | Add ip  of instances to host groups
+        add_host:
+          hostname: "{{ item.0.ansible_facts.azure_networkinterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress }}"
+          groups: "{{ item.1 }}"
+          ansible_user: azureuser
+          ansible_ssh_private_key_file: "/home/ubuntu/id_rsa"
+        with_together:
+          - "{{ get_net_fact.results }}"
+          - "{{ az_tags }}"
+        register: create_hosts_group
+        ignore_errors: yes      
