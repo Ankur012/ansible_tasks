@@ -57,4 +57,80 @@
           - "{{ get_net_fact.results }}"
           - "{{ az_tags }}"
         register: create_hosts_group
-        ignore_errors: yes      
+        ignore_errors: yes 
+
+
+---------------------
+
+
+- name: Task | Get ip address
+  azure_rm_networkinterface_facts:
+    subscription_id: "{{ AZURE_SUBSCRIPTION_ID }}"
+    client_id: "{{ AZURE_CLIENT_ID }}"
+    secret: "{{ AZURE_SECRET }}"
+    tenant: "{{ AZURE_TENANT }}"
+    resource_group: "{{ RESOURCE_GROUP }}"
+    name: "{{ item.value[0] }}"
+  with_dict:
+        - "{{ vm_net_intf }}"
+  register: get_net_ip
+  ignore_errors: yes
+
+- debug: var=get_net_ip
+
+- name: Task | Createing Hash for component name vs vm name ip address
+  set_fact:
+       vm_name_ip: "{{ vm_name_ip|default({}) | combine( {item.ansible_facts.azure_networkinterfaces[0].tags.component: item.ansible_facts.azure_networkinterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress} ) }}"
+  with_items:
+          - "{{ get_net_ip.results }}"
+  ignore_errors: yes
+
+- debug: var=vm_name_ip
+
+
+- name: Task | Add "{{ item.1 }}" instances to host groups
+  add_host:
+    hostname: "{{ item.value }}"
+    groups: "{{ item.key }}"
+    ansible_user: azureuser
+    ansible_ssh_private_key_file: "{{ azure_prvKeyFile }}"
+  with_dict:
+    - "{{ vm_name_ip }}"
+  register: create_hosts_group
+  ignore_errors: yes
+
+
+- name: Log | Add instances to host  groups completed
+  local_action: lineinfile path={{ log_file_path }} insertafter=EOF  line='{{ progress_log }}Add {{ item.key }} instances ip {{ item.value }} to {{ item.key }}  host group completed]'
+  ignore_errors: yes
+  with_dict:
+        - "{{ vm_name_ip }}"
+
+
+- name: Task | Createing Hash for component name vs vm tag name
+  set_fact:
+          vm_comp_name: "{{ vm_comp_name | default({}) | combine( {item.0: item.1} ) }}"
+  with_together:
+       - "{{ az_com_name }}"
+       - "{{ az_vm_tags }}"
+  ignore_errors: yes
+
+
+- debug: var=vm_name_ip
+- debug: var=vm_comp_name
+- name: show dynamic inventory
+  debug:
+    verbosity: 1
+    var: groups
+  ignore_errors: yes
+
+- include: "{{ stage_failed_nohost }}"
+  when: vm_name_ip[vm_comp_name[component_name]]  == ""
+
+- name: Task | component ip add in output_properties_file
+  local_action: lineinfile path="{{ output_properties_file }}" line="{{ component_name }}_old_vm_ip={{ vm_name_ip[vm_comp_name[component_name]] }}"
+
+- name: Task | component name add in output_properties_file
+  local_action: lineinfile path="{{ output_properties_file }}" line="{{ component_name }}_old_vm_name={{ vm_name[component_name] }}"
+
+     
